@@ -11,7 +11,9 @@ else:
 
 lib_path = os.path.join(current_dir,"menu_lib.dll")
 
-USE_CPP = True
+MODE = "CPP"
+import queue_stl
+my_queue_stl = queue_stl.Queue()
 
 BG = "#F5F0E6"
 BTN = "#E1D5C9"
@@ -51,7 +53,7 @@ def log(msg):
 def See_queue():
     show_Queue.delete(1.0,tk.END)
     elements = []
-    if USE_CPP:
+    if MODE == "CPP":
         if not my_queue_c:
             return
         
@@ -64,9 +66,14 @@ def See_queue():
             text_b = node.b.decode('utf-8','ignore')
             elements.append(f"{node.a} {text_b}")
             current = node.next
-    else:
+    elif MODE == "py":
         size = len(py_queue)
         for a,b in py_queue:
+            elements.append(f"{a} {b}")
+    elif MODE == "stl":
+        size = len(my_queue_stl)
+        items = my_queue_stl.to_vector()
+        for a, b in items:
             elements.append(f"{a} {b}")
 
     Queue_count.config(text=f"Количество элементов в очереди: {size}")
@@ -81,9 +88,11 @@ def enqueue():
         val_a = int(entry_a.get())
         val_b = entry_b.get()
 
-        if USE_CPP:
+        if MODE == "CPP":
             lib.enqueue(my_queue_c,val_a,val_b.encode('utf-8'))
-        else:
+        elif MODE == "stl":
+            my_queue_stl.push(val_a, val_b)
+        elif MODE == "py":
             py_queue.append((val_a,val_b))
         log(f"Добавлено: {val_a} {val_b}")
 
@@ -94,7 +103,7 @@ def enqueue():
         messagebox.showerror("Ошибка ввода","Введите целое число")
 
 def dequeue():
-    if USE_CPP:
+    if MODE == "CPP":
         out_a = ctypes.c_int()
         out_b = ctypes.create_string_buffer(21)
 
@@ -105,31 +114,44 @@ def dequeue():
             log(f"Удалено: {out_a.value} {text_b}")
         else:
             messagebox.showinfo("Информация","Очередь пустая")
-    else:
+    elif MODE == "py":
         if len(py_queue) > 0:
             a,b = py_queue.pop(0)
             log(f"Удалено: {a} {b}")
         else:
             messagebox.showinfo("Информация","Очередь пустая")
+    elif MODE == "stl":
+        if my_queue_stl.empty():
+            messagebox.showinfo("Информация", "Очередь пустая")
+        else:
+            items = my_queue_stl.to_vector()
+            a, b = items[0]
+            my_queue_stl.pop()
+            log(f"Удалено: {a} {b}")
     
     See_queue()
 
 def clear():
-    if USE_CPP:
+    if MODE == "CPP":
         lib.clearQueue(my_queue_c)
-    else:
+    elif MODE == "py":
         py_queue.clear()
+    elif MODE == "stl": my_queue_stl.clear()
     log("Очередь удалена")
     See_queue()
 
 def switch():
-    global USE_CPP
-    if USE_CPP:
+    global MODE
+    if MODE == "CPP":
         lib.clearQueue(my_queue_c)
-    else:
+    elif MODE == "py":
         py_queue.clear()
-    USE_CPP = var.get()
-    log(("Переход на C++" if USE_CPP else "Переход на Python"))
+    elif MODE == "stl": 
+        my_queue_stl.clear()
+    MODE = var.get()
+
+    names = {"CPP": "С++","stl": "STL","py": "Python"}
+    log(f"Переход на: {names[MODE]}")
     See_queue()
 
 
@@ -174,10 +196,10 @@ show_Queue = tk.Text(right_frame,font=FNT)
 
 Queue_count.pack(pady=5,anchor=tk.W)
 show_Queue.pack(pady=5)
-var = tk.BooleanVar(value=True)
-tk.Radiobutton(right_frame,text="C++",variable=var,value=True,command=switch).pack(anchor=tk.W)
-tk.Radiobutton(right_frame,text="Python",variable=var,value=False,command=switch).pack(anchor=tk.W)
-
+var = tk.StringVar(value="CPP") 
+tk.Radiobutton(right_frame, text="C++", variable=var, value="CPP", command=switch, bg=BG).pack(anchor=tk.W)
+tk.Radiobutton(right_frame, text="STL", variable=var, value="stl", command=switch, bg=BG).pack(anchor=tk.W)
+tk.Radiobutton(right_frame, text="Python", variable=var, value="py", command=switch, bg=BG).pack(anchor=tk.W)
 
 
 # Нижний блок для лога операций 
